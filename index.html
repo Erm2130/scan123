@@ -398,24 +398,26 @@
             html5QrcodeScanner = new Html5Qrcode("reader");
             
             const config = {
-                fps: 15, // เพิ่มความถี่ในการสแกน (เร็วขึ้น)
-                qrbox: { width: 300, height: 120 }, // ปรับกรอบให้เป็นแนวยาว เหมาะกับบาร์โค้ด
+                fps: 15, 
+                qrbox: { width: 300, height: 120 }, 
                 formatsToSupport: [ 
                     Html5QrcodeSupportedFormats.EAN_13, 
                     Html5QrcodeSupportedFormats.EAN_8, 
                     Html5QrcodeSupportedFormats.UPC_A, 
                     Html5QrcodeSupportedFormats.CODE_128 
-                ] // บังคับอ่านเฉพาะบาร์โค้ดสินค้า
+                ]
             };
 
+            // แก้ไข: เอาคำสั่ง advanced focusMode ออก เหลือแค่บังคับใช้กล้องหลัง
             const cameraConfig = { 
-                facingMode: "environment", // ใช้กล้องหลัง
-                advanced: [{ focusMode: "continuous" }] // บังคับออโต้โฟกัส
+                facingMode: "environment"
             };
 
-            html5QrcodeScanner.start(cameraConfig, config, onScanSuccess).catch(()=>alert("กรุณาอนุญาตให้ใช้งานกล้อง"));
+            html5QrcodeScanner.start(cameraConfig, config, onScanSuccess).catch((err) => {
+                console.error(err);
+                alert("เกิดข้อผิดพลาดในการเปิดกล้อง โปรดปิดแล้วเปิดแอปใหม่อีกครั้ง");
+            });
         }
-
         function stopCamera() { if(html5QrcodeScanner) { html5QrcodeScanner.stop().then(() => html5QrcodeScanner = null); } }
         
         function onScanSuccess(decodedText) {
