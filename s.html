@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>แอปเช็คสินค้า V3 (Master Data)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #reader video { object-fit: cover; border-radius: 0.5rem; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 pb-20">
+
+    <!-- ================= หน้าที่ 1: หน้าแรก (รายการออเดอร์) ================= -->
+    <div id="page-home" class="max-w-md mx-auto bg-gray-100 min-h-screen">
+        <div class="bg-blue-600 text-white p-4 sticky top-0 z-10 flex justify-between items-center shadow-md">
+            <h1 class="text-xl font-bold">บิลจัดส่ง</h1>
+            <div class="flex gap-2">
+                <button onclick="showPage('master')" class="bg-blue-800 text-white px-3 py-1 rounded-full text-sm font-bold shadow">⚙️ ข้อมูล</button>
+                <button onclick="showPage('setup')" class="bg-white text-blue-600 px-3 py-1 rounded-full text-sm font-bold shadow">+ สร้างบิล</button>
+            </div>
+        </div>
+        <div class="p-4 space-y-3" id="orders-container"></div>
+    </div>
+
+
+    <!-- ================= หน้าที่ 2: จัดการฐานข้อมูล (Master Data) ================= -->
+    <div id="page-master" class="max-w-md mx-auto bg-white min-h-screen shadow-md hidden">
+        <div class="bg-gray-800 text-white p-4 sticky top-0 z-10 flex items-center gap-3 shadow-md">
+            <button onclick="showPage('home')" class="text-white font-bold">&larr; กลับ</button>
+            <h1 class="text-xl font-bold">ตั้งค่าฐานข้อมูล</h1>
+        </div>
+        
+        <div class="p-4 space-y-6">
+            <!-- จัดการสินค้า -->
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h2 class="font-bold text-blue-800 mb-2 border-b border-blue-200 pb-1">📦 ฐานข้อมูลสินค้า</h2>
+                <div class="flex flex-col gap-2 mb-3">
+                    <input type="text" id="master-item-name" class="border p-2 rounded text-sm" placeholder="ชื่อสินค้า (เช่น เบียร์ลีโอ ลัง)">
+                    <input type="text" id="master-item-barcode" class="border p-2 rounded text-sm" placeholder="รหัสบาร์โค้ด" onkeyup="this.value=this.value.replace(/[^0-9]/g, '')">
+                    <button onclick="addMasterItem()" class="bg-blue-600 text-white p-2 rounded font-bold text-sm">เพิ่มสินค้า</button>
+                </div>
+                <div id="list-master-items" class="space-y-1 max-h-40 overflow-y-auto text-sm"></div>
+            </div>
+
+            <!-- จัดการคนขับ -->
+            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h2 class="font-bold text-green-800 mb-2 border-b border-green-200 pb-1">🚚 รายชื่อคนขับรถ</h2>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="master-driver-name" class="border p-2 rounded text-sm w-full" placeholder="ชื่อ-สกุล / ทะเบียนรถ">
+                    <button onclick="addMasterDriver()" class="bg-green-600 text-white px-3 rounded font-bold text-sm">เพิ่ม</button>
+                </div>
+                <div id="list-master-drivers" class="space-y-1 max-h-32 overflow-y-auto text-sm"></div>
+            </div>
+
+            <!-- จัดการเด็กยก -->
+            <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                <h2 class="font-bold text-yellow-800 mb-2 border-b border-yellow-200 pb-1">💪 รายชื่อเด็กยก</h2>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="master-helper-name" class="border p-2 rounded text-sm w-full" placeholder="ชื่อเด็กยก">
+                    <button onclick="addMasterHelper()" class="bg-yellow-600 text-white px-3 rounded font-bold text-sm">เพิ่ม</button>
+                </div>
+                <div id="list-master-helpers" class="space-y-1 max-h-32 overflow-y-auto text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= หน้าที่ 3: สร้างบิล ================= -->
+    <div id="page-setup" class="max-w-md mx-auto bg-white min-h-screen shadow-md hidden">
+        <div class="bg-blue-600 text-white p-4 sticky top-0 z-10 flex items-center gap-3 shadow-md">
+            <button onclick="showPage('home')" class="text-white font-bold">&larr; กลับ</button>
+            <h1 class="text-xl font-bold">สร้างบิลจัดส่งใหม่</h1>
+        </div>
+        
+        <div class="p-4 space-y-4">
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">1. ชื่อร้านปลายทาง (พิมพ์เอง)</label>
+                <input type="text" id="shop-name" class="w-full border rounded-lg p-3 bg-gray-50" placeholder="เช่น ร้านเจ๊สมหมาย">
+                
+                <label class="block text-sm font-bold text-gray-700 mt-2">2. เลือกคนขับรถ</label>
+                <div onclick="openSelector('drivers')" class="w-full border rounded-lg p-3 bg-gray-50 text-gray-500 cursor-pointer flex justify-between">
+                    <span id="display-selected-driver">-- กดเพื่อเลือกคนขับ --</span> <span>🔍</span>
+                </div>
+                
+                <label class="block text-sm font-bold text-gray-700 mt-2">3. เลือกเด็กยก</label>
+                <div onclick="openSelector('helpers')" class="w-full border rounded-lg p-3 bg-gray-50 text-gray-500 cursor-pointer flex justify-between">
+                    <span id="display-selected-helper">-- กดเพื่อเลือกเด็กยก --</span> <span>🔍</span>
+                </div>
+            </div>
+
+            <hr class="border-gray-300">
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">4. รายการสินค้า</label>
+                <div id="added-items-list" class="space-y-2 mb-3"></div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg border-2 border-blue-200 space-y-2">
+                    <div onclick="openSelector('products')" class="w-full border border-blue-300 rounded p-2 bg-white text-blue-600 font-bold cursor-pointer text-center text-sm shadow-sm">
+                        + เลือกรหัสสินค้าจากฐานข้อมูล
+                    </div>
+                    
+                    <!-- ส่วนที่ซ่อนไว้จนกว่าจะเลือกสินค้า -->
+                    <div id="draft-item-details" class="hidden flex gap-2 items-center bg-blue-50 p-2 rounded border border-blue-100">
+                        <div class="flex-1 overflow-hidden">
+                            <p id="draft-item-name" class="font-bold text-sm truncate text-gray-800"></p>
+                            <p id="draft-item-barcode" class="text-xs text-gray-500"></p>
+                        </div>
+                        <div class="flex gap-1 w-1/3">
+                            <input type="number" id="draft-item-qty" class="w-full border rounded p-1 text-center font-bold" placeholder="จำนวน">
+                        </div>
+                        <button onclick="addDraftItem()" class="bg-blue-600 text-white px-3 py-2 rounded font-bold text-sm shadow">เพิ่ม</button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="saveNewOrder()" class="w-full bg-green-500 text-white font-bold text-lg p-3 rounded-lg mt-4 shadow-md">
+                บันทึกออเดอร์
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ================= หน้าที่ 4: สแกนเช็คสินค้า (คงเดิม) ================= -->
+    <div id="page-scan" class="max-w-md mx-auto bg-white min-h-screen shadow-md hidden">
+        <div class="bg-blue-600 text-white p-4 sticky top-0 z-10 flex justify-between items-center">
+            <button onclick="exitScanPage()" class="text-white font-bold">&larr; กลับ</button>
+            <h1 class="text-lg font-bold">สแกนเช็คของ</h1>
+            <button onclick="deleteCurrentOrder()" class="text-sm bg-red-500 px-2 py-1 rounded">ลบบิล</button>
+        </div>
+        <div class="p-3 bg-blue-50 border-b text-sm">
+            <p><strong>ร้าน:</strong> <span id="display-shop"></span></p>
+            <p><strong>คนขับ:</strong> <span id="display-driver"></span> | <strong>เด็กยก:</strong> <span id="display-helper"></span></p>
+        </div>
+        <div class="p-4 bg-gray-800">
+            <div id="reader" class="w-full bg-black rounded-lg overflow-hidden border-2 border-green-400"></div>
+        </div>
+        <div id="alert-box" class="hidden p-3 mx-4 mt-2 rounded font-bold text-center"></div>
+        <div class="p-4">
+            <h2 class="font-bold text-gray-700 mb-2">สถานะการเช็คของ:</h2>
+            <div id="order-list" class="space-y-2"></div>
+        </div>
+    </div>
+
+
+    <!-- ================= MODAL: ค้นหาและเลือกข้อมูล (Searchable Select) ================= -->
+    <div id="selector-modal" class="hidden fixed inset-0 bg-white z-50 flex flex-col">
+        <div class="bg-gray-800 text-white p-4 flex items-center gap-3">
+            <button onclick="closeSelector()" class="font-bold text-xl">&times;</button>
+            <h2 id="selector-title" class="font-bold text-lg flex-1">เลือก...</h2>
+        </div>
+        <div class="p-3 bg-gray-100 border-b">
+            <input type="text" id="selector-search" onkeyup="renderSelectorList()" class="w-full p-3 rounded-lg border-2 border-blue-300 text-lg shadow-inner" placeholder="🔍 พิมพ์เพื่อค้นหา...">
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-1 bg-gray-50" id="selector-list">
+            <!-- รายการจะถูกสร้างที่นี่ -->
+        </div>
+    </div>
+
+    <!-- ================= MODAL: ป๊อปอัปใส่จำนวนสแกน (คงเดิม) ================= -->
+    <div id="qty-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
+        <div class="bg-white p-5 rounded-lg w-full max-w-sm text-center">
+            <h2 class="text-xl font-bold mb-1 text-blue-600">สแกนสำเร็จ!</h2>
+            <p id="modal-product-name" class="text-gray-700 font-bold text-lg mb-4"></p>
+            <input type="number" id="scanned-qty" class="w-full border-2 border-blue-400 rounded-lg p-3 text-xl text-center font-bold mb-4" value="1">
+            <div class="flex gap-2 mb-4">
+                <button onclick="document.getElementById('scanned-qty').value=parseInt(document.getElementById('scanned-qty').value||0)+1" class="flex-1 bg-gray-200 py-2 rounded font-bold">+1</button>
+                <button onclick="setQtyMax()" class="flex-1 bg-yellow-300 py-2 rounded font-bold text-sm">ใส่ยอดที่เหลือ</button>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="document.getElementById('qty-modal').classList.add('hidden'); startCamera();" class="flex-1 bg-red-500 text-white p-3 rounded-lg font-bold">ยกเลิก</button>
+                <button onclick="confirmQty()" class="flex-1 bg-green-500 text-white p-3 rounded-lg font-bold">ยืนยัน</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // --- ฐานข้อมูลหลัก (Master Data) ---
+        let masterData = JSON.parse(localStorage.getItem('db_master')) || {
+            products: [], // { name, barcode }
+            drivers: [],  // string
+            helpers: []   // string
+        };
+        let orders = JSON.parse(localStorage.getItem('db_orders')) || [];
+        
+        let draftOrder = { shop: '', driver: '', helper: '', items: [] };
+        let activeSelectedProduct = null;
+        
+        // สถานะสแกนเนอร์
+        let activeOrderId = null;
+        let html5QrcodeScanner = null;
+        let currentScannedBarcode = null;
+
+        // --- เริ่มต้นโหลดข้อมูล ---
+        window.onload = () => { renderHome(); renderMasterData(); };
+
+        function showPage(pageId) {
+            ['home', 'master', 'setup', 'scan'].forEach(p => document.getElementById('page-'+p).classList.add('hidden'));
+            document.getElementById('page-'+pageId).classList.remove('hidden');
+
+            if(pageId === 'setup') {
+                draftOrder = { shop: '', driver: '', helper: '', items: [] };
+                document.getElementById('shop-name').value = '';
+                document.getElementById('display-selected-driver').innerText = '-- กดเพื่อเลือกคนขับ --';
+                document.getElementById('display-selected-driver').classList.remove('text-black', 'font-bold');
+                document.getElementById('display-selected-helper').innerText = '-- กดเพื่อเลือกเด็กยก --';
+                document.getElementById('display-selected-helper').classList.remove('text-black', 'font-bold');
+                document.getElementById('draft-item-details').classList.add('hidden');
+                renderDraftItems();
+            }
+        }
+
+        function saveMaster() {
+            localStorage.setItem('db_master', JSON.stringify(masterData));
+            renderMasterData();
+        }
+
+        // --- ฟังก์ชันจัดการ Master Data ---
+        function addMasterItem() {
+            let n = document.getElementById('master-item-name').value;
+            let b = document.getElementById('master-item-barcode').value;
+            if(n && b) {
+                if(!masterData.products.find(p => p.barcode === b)) {
+                    masterData.products.push({name: n, barcode: b});
+                    saveMaster();
+                    document.getElementById('master-item-name').value = '';
+                    document.getElementById('master-item-barcode').value = '';
+                } else alert("บาร์โค้ดนี้มีอยู่ในระบบแล้ว!");
+            }
+        }
+        function addMasterDriver() {
+            let v = document.getElementById('master-driver-name').value;
+            if(v && !masterData.drivers.includes(v)) { masterData.drivers.push(v); saveMaster(); document.getElementById('master-driver-name').value = ''; }
+        }
+        function addMasterHelper() {
+            let v = document.getElementById('master-helper-name').value;
+            if(v && !masterData.helpers.includes(v)) { masterData.helpers.push(v); saveMaster(); document.getElementById('master-helper-name').value = ''; }
+        }
+        function deleteMaster(type, index) {
+            if(confirm("ลบข้อมูลนี้?")) { masterData[type].splice(index, 1); saveMaster(); }
+        }
+
+        function renderMasterData() {
+            document.getElementById('list-master-items').innerHTML = masterData.products.map((p, i) => `
+                <div class="flex justify-between bg-white p-2 rounded border items-center">
+                    <div><div class="font-bold text-gray-800">${p.name}</div><div class="text-xs text-gray-500">${p.barcode}</div></div>
+                    <button onclick="deleteMaster('products', ${i})" class="text-red-500 font-bold px-2">&times;</button>
+                </div>`).join('');
+            
+            document.getElementById('list-master-drivers').innerHTML = masterData.drivers.map((d, i) => `
+                <div class="flex justify-between bg-white p-2 rounded border items-center">
+                    <span class="text-gray-800">${d}</span><button onclick="deleteMaster('drivers', ${i})" class="text-red-500 font-bold px-2">&times;</button>
+                </div>`).join('');
+                
+            document.getElementById('list-master-helpers').innerHTML = masterData.helpers.map((h, i) => `
+                <div class="flex justify-between bg-white p-2 rounded border items-center">
+                    <span class="text-gray-800">${h}</span><button onclick="deleteMaster('helpers', ${i})" class="text-red-500 font-bold px-2">&times;</button>
+                </div>`).join('');
+        }
+
+        // --- ระบบ Searchable Selector ---
+        let currentSelectorType = '';
+        function openSelector(type) {
+            currentSelectorType = type;
+            let title = type === 'drivers' ? 'เลือกคนขับรถ' : (type === 'helpers' ? 'เลือกเด็กยก' : 'เลือกสินค้า');
+            document.getElementById('selector-title').innerText = title;
+            document.getElementById('selector-search').value = '';
+            document.getElementById('selector-modal').classList.remove('hidden');
+            document.getElementById('selector-search').focus();
+            renderSelectorList();
+        }
+        function closeSelector() {
+            document.getElementById('selector-modal').classList.add('hidden');
+        }
+        
+        function renderSelectorList() {
+            let search = document.getElementById('selector-search').value.toLowerCase();
+            let html = '';
+            
+            if(currentSelectorType === 'products') {
+                let filtered = masterData.products.filter(p => p.name.toLowerCase().includes(search) || p.barcode.includes(search));
+                html = filtered.map(p => `
+                    <div onclick="selectProduct('${p.barcode}')" class="p-4 bg-white border rounded-lg active:bg-blue-100 flex flex-col mb-2 shadow-sm">
+                        <span class="font-bold text-lg">${p.name}</span>
+                        <span class="text-sm text-gray-500">📦 ${p.barcode}</span>
+                    </div>`).join('');
+                if(filtered.length === 0) html = `<div class="p-4 text-center text-gray-500">ไม่พบสินค้า (ไปเพิ่มในตั้งค่าข้อมูล)</div>`;
+            } else {
+                let list = masterData[currentSelectorType];
+                let filtered = list.filter(item => item.toLowerCase().includes(search));
+                html = filtered.map(item => `
+                    <div onclick="selectString('${item}')" class="p-4 bg-white border rounded-lg active:bg-blue-100 mb-2 font-bold text-lg shadow-sm">
+                        ${item}
+                    </div>`).join('');
+                if(filtered.length === 0) html = `<div class="p-4 text-center text-gray-500">ไม่พบข้อมูล (ไปเพิ่มในตั้งค่าข้อมูล)</div>`;
+            }
+            document.getElementById('selector-list').innerHTML = html;
+        }
+
+        function selectString(val) {
+            if(currentSelectorType === 'drivers') {
+                draftOrder.driver = val;
+                document.getElementById('display-selected-driver').innerText = val;
+                document.getElementById('display-selected-driver').classList.add('text-black', 'font-bold');
+            } else if(currentSelectorType === 'helpers') {
+                draftOrder.helper = val;
+                document.getElementById('display-selected-helper').innerText = val;
+                document.getElementById('display-selected-helper').classList.add('text-black', 'font-bold');
+            }
+            closeSelector();
+        }
+
+        function selectProduct(barcode) {
+            let p = masterData.products.find(x => x.barcode === barcode);
+            activeSelectedProduct = p;
+            document.getElementById('draft-item-name').innerText = p.name;
+            document.getElementById('draft-item-barcode').innerText = p.barcode;
+            document.getElementById('draft-item-qty').value = '';
+            document.getElementById('draft-item-details').classList.remove('hidden');
+            closeSelector();
+            setTimeout(() => document.getElementById('draft-item-qty').focus(), 100);
+        }
+
+        // --- สร้างบิล ---
+        function addDraftItem() {
+            let qty = parseInt(document.getElementById('draft-item-qty').value);
+            if(activeSelectedProduct && qty > 0) {
+                // เช็คว่ามีในบิลแล้วหรือยัง ถ้ามีให้บวกเพิ่ม
+                let exist = draftOrder.items.find(i => i.barcode === activeSelectedProduct.barcode);
+                if(exist) exist.target += qty;
+                else draftOrder.items.push({ name: activeSelectedProduct.name, barcode: activeSelectedProduct.barcode, target: qty, current: 0 });
+                
+                document.getElementById('draft-item-details').classList.add('hidden');
+                activeSelectedProduct = null;
+                renderDraftItems();
+            } else alert("กรุณาใส่จำนวนที่ถูกต้อง");
+        }
+
+        function renderDraftItems() {
+            document.getElementById('added-items-list').innerHTML = draftOrder.items.map((item, i) => `
+                <div class="flex justify-between items-center bg-white border p-2 rounded text-sm shadow-sm">
+                    <div><p class="font-bold">${item.name}</p><p class="text-gray-500 text-xs">${item.barcode}</p></div>
+                    <div class="flex items-center gap-2"><span class="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">x ${item.target}</span>
+                    <button onclick="draftOrder.items.splice(${i},1); renderDraftItems()" class="text-red-500 px-2 font-bold text-lg">&times;</button></div>
+                </div>`).join('');
+        }
+
+        function saveNewOrder() {
+            draftOrder.shop = document.getElementById('shop-name').value;
+            if(!draftOrder.shop || !draftOrder.driver || draftOrder.items.length === 0) return alert("กรุณากรอกร้านค้า เลือกคนขับ และเพิ่มสินค้าอย่างน้อย 1 อย่าง");
+
+            orders.push({
+                id: 'ORD-' + Date.now(), date: new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH').slice(0,5),
+                ...draftOrder
+            });
+            localStorage.setItem('db_orders', JSON.stringify(orders));
+            showPage('home'); renderHome();
+        }
+
+        // --- หน้าแรกแสดงบิล ---
+        function renderHome() {
+            let container = document.getElementById('orders-container');
+            if(orders.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 mt-10 p-5 bg-white rounded-lg border border-dashed">ยังไม่มีบิล<br>กดปุ่ม "+ สร้างบิล" </div>`; return;
+            }
+            container.innerHTML = [...orders].reverse().map(order => {
+                let isDone = order.items.length > 0 && order.items.every(i => i.current >= i.target);
+                return `
+                <div onclick="openOrder('${order.id}')" class="bg-white p-4 rounded-lg shadow cursor-pointer border-l-4 ${isDone ? 'border-green-500' : 'border-yellow-400'} mb-3">
+                    <div class="flex justify-between items-start mb-2"><h3 class="font-bold text-gray-800 text-lg">${order.shop}</h3>
+                    <span class="text-xs font-bold px-2 py-1 rounded ${isDone ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${isDone ? 'เสร็จสิ้น' : 'รอตรวจสอบ'}</span></div>
+                    <p class="text-sm text-gray-600 mb-1">🚚 ${order.driver}</p>
+                    <div class="flex justify-between text-xs text-gray-500 mt-2 pt-2 border-t"><span class="font-bold ${isDone ? 'text-green-600' : 'text-blue-600'}">ตรวจแล้ว ${order.items.filter(i => i.current >= i.target).length}/${order.items.length} รายการ</span></div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- ระบบสแกน (คงเดิมจากเวอร์ชันก่อน) ---
+        function openOrder(id) {
+            activeOrderId = id;
+            let order = orders.find(o => o.id === id);
+            document.getElementById('display-shop').innerText = order.shop;
+            document.getElementById('display-driver').innerText = order.driver;
+            document.getElementById('display-helper').innerText = order.helper || '-';
+            showPage('scan'); renderActiveOrderItems();
+            if(!order.items.every(i => i.current >= i.target)) startCamera();
+            else showAlert("บิลนี้ตรวจสอบครบถ้วนแล้ว", "bg-green-500 text-white");
+        }
+        function renderActiveOrderItems() {
+            let order = orders.find(o => o.id === activeOrderId);
+            let allDone = true;
+            document.getElementById('order-list').innerHTML = order.items.map(item => {
+                let isComplete = item.current >= item.target;
+                if(!isComplete) allDone = false;
+                let bgClass = isComplete ? 'bg-green-100 border-green-500' : (item.current > 0 ? 'bg-yellow-50 border-yellow-400' : 'bg-gray-50 border-gray-300');
+                return `<div class="border-2 p-3 rounded-lg flex justify-between items-center ${bgClass}">
+                        <div><div class="font-bold text-gray-800">${item.name}</div><div class="text-xs text-gray-500">${item.barcode}</div></div>
+                        <div class="text-xl font-black ${isComplete ? 'text-green-600' : 'text-gray-700'}">${item.current} / ${item.target}</div>
+                    </div>`;
+            }).join('');
+            if(allDone && order.items.length > 0) { showAlert("🎉 ขึ้นของครบแล้ว!", "bg-green-500 text-white"); stopCamera(); }
+        }
+        function exitScanPage() { stopCamera(); showPage('home'); renderHome(); }
+        function deleteCurrentOrder() {
+            if(confirm("ลบบิลนี้ทิ้งใช่หรือไม่?")) {
+                orders = orders.filter(o => o.id !== activeOrderId);
+                localStorage.setItem('db_orders', JSON.stringify(orders)); exitScanPage();
+            }
+        }
+        function startCamera() {
+            if(html5QrcodeScanner) return;
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, onScanSuccess).catch(()=>alert("กรุณาอนุญาตกล้อง"));
+        }
+        function stopCamera() { if(html5QrcodeScanner) { html5QrcodeScanner.stop().then(() => html5QrcodeScanner = null); } }
+        function onScanSuccess(decodedText) {
+            stopCamera();
+            let order = orders.find(o => o.id === activeOrderId);
+            let item = order.items.find(i => i.barcode === decodedText);
+            if (item) {
+                if (item.current >= item.target) { showAlert(`❌ สแกนครบแล้ว!`, "bg-red-500 text-white"); setTimeout(startCamera, 2000); } 
+                else {
+                    currentScannedBarcode = decodedText;
+                    document.getElementById('modal-product-name').innerText = item.name;
+                    document.getElementById('scanned-qty').value = 1;
+                    document.getElementById('qty-modal').classList.remove('hidden');
+                }
+            } else { showAlert(`❌ ไม่มีสินค้านี้ในบิล!`, "bg-red-500 text-white"); setTimeout(startCamera, 2000); }
+        }
+        function showAlert(msg, cls) {
+            let el = document.getElementById('alert-box'); el.innerText = msg; el.className = `p-3 mx-4 mt-2 rounded font-bold text-center ${cls}`;
+            el.classList.remove('hidden'); setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+        function setQtyMax() {
+            let order = orders.find(o => o.id === activeOrderId);
+            let item = order.items.find(i => i.barcode === currentScannedBarcode);
+            document.getElementById('scanned-qty').value = item.target - item.current;
+        }
+        function confirmQty() {
+            let qty = parseInt(document.getElementById('scanned-qty').value);
+            if(qty <= 0 || isNaN(qty)) return;
+            let order = orders.find(o => o.id === activeOrderId);
+            let item = order.items.find(i => i.barcode === currentScannedBarcode);
+            if (item.current + qty > item.target) return alert(`เกิน! ขาดอีก ${item.target - item.current} ชิ้น`);
+            item.current += qty;
+            localStorage.setItem('db_orders', JSON.stringify(orders));
+            document.getElementById('qty-modal').classList.add('hidden');
+            renderActiveOrderItems();
+            if(!order.items.every(i => i.current >= i.target)) startCamera();
+        }
+    </script>
+</body>
+</html>
